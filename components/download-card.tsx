@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Eye, Shield, Clock, CheckCircle, Link as LinkIcon, Trash2 } from "lucide-react";
+import { Download, Eye, Shield, Clock, CheckCircle, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdModal } from "./ad-modal";
 
@@ -12,7 +12,6 @@ interface DownloadCardProps {
   fileSize?: string;
   downloadUrl: string;
   previewUrl?: string;
-  onDelete?: (id: string) => void;
 }
 
 export function DownloadCard({ 
@@ -22,8 +21,8 @@ export function DownloadCard({
   fileSize = "Unknown", 
   downloadUrl,
   previewUrl,
-  onDelete
 }: DownloadCardProps) {
+  void id;
   const [showAdModal, setShowAdModal] = useState(false);
   const [actionType, setActionType] = useState<"download" | "preview">("download");
   const [isCompleted, setIsCompleted] = useState(false);
@@ -55,18 +54,6 @@ export function DownloadCard({
       <div className="group relative bg-card/80 backdrop-blur-xl border border-border rounded-2xl p-6 md:p-8 shadow-2xl shadow-primary/10 hover:shadow-primary/20 transition-all duration-500 hover:scale-[1.02] hover:border-primary/50">
         {/* Glow effect */}
         <div className="absolute inset-0 rounded-2xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-        
-        {/* Delete button */}
-        {onDelete && (
-          <Button
-            onClick={() => onDelete(id)}
-            variant="ghost"
-            size="sm"
-            className="absolute top-4 right-4 h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors z-10"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        )}
         
         {/* Content */}
         <div className="relative space-y-6">
