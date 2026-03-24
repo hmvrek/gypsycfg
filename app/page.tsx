@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import useSWR, { mutate } from "swr";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/header";
 import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
 import { LinkForm } from "@/components/link-form";
 import { Shield, Zap, Globe, Link2, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface LinkData {
   id: string;
@@ -17,36 +17,56 @@ interface LinkData {
   created_at: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 export default function Home() {
-  const { data: links, error, isLoading } = useSWR<LinkData[]>("/api/links", fetcher);
+  const [links, setLinks] = useState<LinkData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLinks = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data, error: fetchError } = await supabase
+        .from("links")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setLinks(data || []);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching links:", err);
+      setError("Failed to load links");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLinks();
+  }, [fetchLinks]);
 
   const handleAddLink = (link: LinkData) => {
-    // Optimistically update the cache
-    mutate("/api/links", [link, ...(links || [])], false);
+    setLinks((prev) => [link, ...prev]);
   };
 
   const handleDeleteLink = async (id: string) => {
     // Optimistically update UI
-    mutate(
-      "/api/links",
-      links?.filter((link) => link.id !== id),
-      false
-    );
+    setLinks((prev) => prev.filter((link) => link.id !== id));
 
     try {
-      const response = await fetch(`/api/links/${id}`, {
-        method: "DELETE",
-      });
+      const supabase = createClient();
+      const { error: deleteError } = await supabase
+        .from("links")
+        .delete()
+        .eq("id", id);
 
-      if (!response.ok) {
-        // Revalidate on error to restore correct state
-        mutate("/api/links");
+      if (deleteError) {
+        // Restore on error
+        fetchLinks();
       }
     } catch {
-      // Revalidate on error
-      mutate("/api/links");
+      // Restore on error
+      fetchLinks();
     }
   };
 
@@ -55,7 +75,7 @@ export default function Home() {
       {/* Background Image with Blur and Overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
-        style={{ backgroundImage: "url('/images/background.jpg')" }}
+        style={{ backgroundImage: "url('./images/background.jpg')" }}
       >
         {/* Dark Overlay */}
         <div className="absolute inset-0 bg-background/85 backdrop-blur-sm" />
@@ -98,7 +118,7 @@ export default function Home() {
           {/* Error State */}
           {error && (
             <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-6 text-center">
-              <p className="text-destructive">Failed to load links. Please try again.</p>
+              <p className="text-destructive">{error}</p>
             </div>
           )}
 
