@@ -24,7 +24,7 @@ export function Header() {
 
           {/* Discord Button */}
           <a
-            href="https://discord.gg/your-invite"
+            href="https://discord.gg/wVfGXuknVc"
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -8,10 +8,10 @@ interface AdModalProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
-  downloadUrl: string;
+  downloadUrl?: string;
 }
 
-export function AdModal({ isOpen, onClose, onComplete, downloadUrl }: AdModalProps) {
+export function AdModal({ isOpen, onClose, onComplete }: AdModalProps) {
   const [countdown, setCountdown] = useState(5);
   const [canSkip, setCanSkip] = useState(false);
 
