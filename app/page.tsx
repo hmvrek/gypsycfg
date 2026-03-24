@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/header";
-import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
 import { LinkForm } from "@/components/link-form";
-import { Shield, Zap, Globe, Link2 } from "lucide-react";
+import { Shield, Zap, Globe, Link2, Copy, Check, ExternalLink, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
 
 interface LinkData {
   id: string;
@@ -14,10 +14,9 @@ interface LinkData {
   description: string;
   url: string;
   file_size: string;
+  short_id: string;
   created_at: string;
 }
-
-const STORAGE_KEY = "gypsycfg_links";
 
 // Check if Supabase is configured
 function isSupabaseConfigured(): boolean {
@@ -30,7 +29,7 @@ export default function Home() {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [useSupabase, setUseSupabase] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadLinks = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -46,25 +45,14 @@ export default function Home() {
 
         if (!error && data) {
           setLinks(data);
-          setUseSupabase(true);
           setIsLoading(false);
           return;
         }
       } catch {
-        // Supabase failed, fall back to localStorage
+        // Supabase failed
       }
     }
 
-    // Fallback to localStorage
-    const storedLinks = localStorage.getItem(STORAGE_KEY);
-    if (storedLinks) {
-      try {
-        const parsed = JSON.parse(storedLinks);
-        setLinks(parsed);
-      } catch {
-        setLinks([]);
-      }
-    }
     setIsLoading(false);
   }, []);
 
@@ -74,8 +62,7 @@ export default function Home() {
   }, [loadLinks]);
 
   const handleAddLink = async (link: LinkData) => {
-    // Try Supabase first if configured
-    if (useSupabase && isSupabaseConfigured()) {
+    if (isSupabaseConfigured()) {
       try {
         const supabase = createClient();
         const { data, error } = await supabase
@@ -85,6 +72,7 @@ export default function Home() {
             description: link.description,
             url: link.url,
             file_size: link.file_size,
+            short_id: link.short_id,
           })
           .select()
           .single();
@@ -94,14 +82,58 @@ export default function Home() {
           return;
         }
       } catch {
-        // Fall through to localStorage
+        // Fall through
       }
     }
 
-    // Fallback to localStorage
-    const newLinks = [link, ...links];
-    setLinks(newLinks);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newLinks));
+    // Fallback - just add to state
+    setLinks([link, ...links]);
+  };
+
+  const handleDeleteLink = async (id: string) => {
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        const { error } = await supabase
+          .from("links")
+          .delete()
+          .eq("id", id);
+
+        if (!error) {
+          setLinks(links.filter(l => l.id !== id));
+          return;
+        }
+      } catch {
+        // Fall through
+      }
+    }
+
+    setLinks(links.filter(l => l.id !== id));
+  };
+
+  const getShortUrl = (shortId: string) => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/${shortId}`;
+    }
+    return `/${shortId}`;
+  };
+
+  const handleCopy = async (shortId: string) => {
+    try {
+      await navigator.clipboard.writeText(getShortUrl(shortId));
+      setCopiedId(shortId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = getShortUrl(shortId);
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopiedId(shortId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
   };
 
   return (
@@ -125,20 +157,20 @@ export default function Home() {
         <Header />
 
         {/* Main Content */}
-        <div className="max-w-3xl mx-auto px-4 py-12 md:py-20">
+        <div className="max-w-4xl mx-auto px-4 py-12 md:py-20">
           {/* Hero Section */}
           <div className="text-center mb-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/30 text-sm text-primary">
               <Zap className="w-4 h-4" />
-              Fast and secure downloads
+              Link Management Panel
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground text-balance">
-              Your link is{" "}
-              <span className="text-primary">ready</span>
+              Your{" "}
+              <span className="text-primary">Links</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-              Click below to download or preview your content. 
-              Ads support our free service.
+              Create shortened links with ad monetization. 
+              Share them and earn from every visit.
             </p>
           </div>
 
@@ -151,17 +183,74 @@ export default function Home() {
 
           {/* Links List */}
           {mounted && !isLoading && links && links.length > 0 ? (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               {links.map((link) => (
-                <DownloadCard
+                <div
                   key={link.id}
-                  id={link.id}
-                  title={link.title}
-                  description={link.description}
-                  fileSize={link.file_size}
-                  downloadUrl={link.url}
-                  previewUrl={link.url}
-                />
+                  className="group relative bg-card/80 backdrop-blur-xl border border-border rounded-xl p-4 md:p-6 shadow-lg hover:shadow-primary/10 transition-all duration-300 hover:border-primary/30"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    {/* Link Icon */}
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                      <Link2 className="w-6 h-6 text-primary" />
+                    </div>
+
+                    {/* Link Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-foreground truncate">{link.title}</h3>
+                      <p className="text-sm text-muted-foreground truncate">{link.description}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <code className="text-xs bg-secondary/50 px-2 py-1 rounded font-mono text-primary">
+                          /{link.short_id}
+                        </code>
+                        <span className="text-xs text-muted-foreground">{link.file_size}</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopy(link.short_id)}
+                        className="h-9 px-3 border-border hover:bg-secondary hover:border-primary/30"
+                      >
+                        {copiedId === link.short_id ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1 text-green-500" />
+                            <span className="text-green-500">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-1" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                      <a
+                        href={getShortUrl(link.short_id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-3 border-border hover:bg-secondary hover:border-primary/30"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </a>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteLink(link.id)}
+                        className="h-9 px-3 border-border hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : mounted && !isLoading && (
@@ -210,7 +299,7 @@ export default function Home() {
         <footer className="relative z-20 border-t border-border/50 mt-20">
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-              <p>© 2026 GypsyCFG. All rights reserved.</p>
+              <p>&copy; 2026 GypsyCFG. All rights reserved.</p>
               <div className="flex items-center gap-6">
                 <a href="#" className="hover:text-foreground transition-colors">Terms</a>
                 <a href="#" className="hover:text-foreground transition-colors">Privacy</a>

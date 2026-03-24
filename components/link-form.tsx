@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Plus, Sparkles } from "lucide-react";
+import { Link2, Plus, Sparkles, Copy, Check, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -11,11 +11,22 @@ interface LinkData {
   description: string;
   url: string;
   file_size: string;
+  short_id: string;
   created_at: string;
 }
 
 interface LinkFormProps {
   onLinkAdd: (link: LinkData) => void;
+}
+
+// Generate a random short ID (8 characters)
+function generateShortId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 export function LinkForm({ onLinkAdd }: LinkFormProps) {
@@ -25,6 +36,35 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
   const [url, setUrl] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [error, setError] = useState("");
+  const [createdLink, setCreatedLink] = useState<LinkData | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const getShortUrl = (shortId: string) => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/${shortId}`;
+    }
+    return `/${shortId}`;
+  };
+
+  const handleCopy = async () => {
+    if (!createdLink) return;
+    
+    try {
+      await navigator.clipboard.writeText(getShortUrl(createdLink.short_id));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = getShortUrl(createdLink.short_id);
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +83,9 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
       return;
     }
 
+    // Generate short ID
+    const shortId = generateShortId();
+
     // Create link data with unique ID
     const newLink: LinkData = {
       id: crypto.randomUUID(),
@@ -50,17 +93,31 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
       description: description.trim() || "Click the button below to access your content.",
       url: url.trim(),
       file_size: fileSize.trim() || "Unknown",
+      short_id: shortId,
       created_at: new Date().toISOString(),
     };
 
     onLinkAdd(newLink);
-    
-    // Reset form
+    setCreatedLink(newLink);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setCreatedLink(null);
     setTitle("");
     setDescription("");
     setUrl("");
     setFileSize("");
-    setIsOpen(false);
+    setCopied(false);
+  };
+
+  const handleAddAnother = () => {
+    setCreatedLink(null);
+    setTitle("");
+    setDescription("");
+    setUrl("");
+    setFileSize("");
+    setCopied(false);
   };
 
   if (!isOpen) {
@@ -79,7 +136,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-background/80 backdrop-blur-md animate-in fade-in duration-300"
-        onClick={() => setIsOpen(false)}
+        onClick={handleClose}
       />
       
       {/* Modal */}
@@ -92,83 +149,156 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
             </div>
             <div>
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                Add New Link
+                {createdLink ? "Link Created!" : "Add New Link"}
                 <Sparkles className="w-4 h-4 text-accent animate-pulse" />
               </h2>
-              <p className="text-sm text-muted-foreground">Add a new config link</p>
+              <p className="text-sm text-muted-foreground">
+                {createdLink ? "Share this link with others" : "Add a new config link"}
+              </p>
             </div>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                URL <span className="text-destructive">*</span>
-              </label>
-              <Input
-                type="url"
-                placeholder="https://example.com/your-file"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="h-11 bg-secondary/50 border-border focus:border-primary"
-              />
-            </div>
+          {/* Success State - Show shortened link */}
+          {createdLink ? (
+            <div className="p-6 space-y-6">
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 rounded-xl bg-green-500/20 flex items-center justify-center mx-auto">
+                  <Check className="w-8 h-8 text-green-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">{createdLink.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Your shortened link is ready</p>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Title</label>
-              <Input
-                type="text"
-                placeholder="My awesome file"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="h-11 bg-secondary/50 border-border focus:border-primary"
-              />
-            </div>
+              {/* Shortened URL */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Shortened URL</label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={getShortUrl(createdLink.short_id)}
+                    className="h-11 bg-secondary/50 border-border font-mono text-sm"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCopy}
+                    className="h-11 px-4 bg-primary hover:bg-primary/90"
+                  >
+                    {copied ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                {copied && (
+                  <p className="text-xs text-green-500">Copied to clipboard!</p>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Description</label>
-              <Input
-                type="text"
-                placeholder="A brief description..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="h-11 bg-secondary/50 border-border focus:border-primary"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">File Size</label>
-              <Input
-                type="text"
-                placeholder="e.g. 25 MB"
-                value={fileSize}
-                onChange={(e) => setFileSize(e.target.value)}
-                className="h-11 bg-secondary/50 border-border focus:border-primary"
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsOpen(false)}
-                className="flex-1 h-11 border-border hover:bg-secondary"
+              {/* Preview Link */}
+              <a
+                href={getShortUrl(createdLink.short_id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 h-11 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Link
-              </Button>
+                <ExternalLink className="w-4 h-4" />
+                Open link in new tab
+              </a>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
+                  className="flex-1 h-11 border-border hover:bg-secondary"
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAddAnother}
+                  className="flex-1 h-11 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Another
+                </Button>
+              </div>
             </div>
-          </form>
+          ) : (
+            /* Form */
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  URL <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  type="url"
+                  placeholder="https://example.com/your-file"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="h-11 bg-secondary/50 border-border focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Title</label>
+                <Input
+                  type="text"
+                  placeholder="My awesome file"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="h-11 bg-secondary/50 border-border focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Description</label>
+                <Input
+                  type="text"
+                  placeholder="A brief description..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="h-11 bg-secondary/50 border-border focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">File Size</label>
+                <Input
+                  type="text"
+                  placeholder="e.g. 25 MB"
+                  value={fileSize}
+                  onChange={(e) => setFileSize(e.target.value)}
+                  className="h-11 bg-secondary/50 border-border focus:border-primary"
+                />
+              </div>
+
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
+                  className="flex-1 h-11 border-border hover:bg-secondary"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 h-11 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Link
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>
