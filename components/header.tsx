@@ -17,7 +17,7 @@ export function Header() {
                 LinkBoost
                 <Sparkles className="w-4 h-4 text-accent animate-pulse" />
               </h1>
-              <p className="text-xs text-muted-foreground">Skracanie linków</p>
+              <p className="text-xs text-muted-foreground">Link Shortener</p>
             </div>
           </div>
 
@@ -25,7 +25,7 @@ export function Header() {
           <div className="hidden sm:flex items-center gap-6 text-sm">
             <div className="text-center">
               <p className="text-foreground font-semibold">12.5K+</p>
-              <p className="text-muted-foreground text-xs">Linków</p>
+              <p className="text-muted-foreground text-xs">Links</p>
             </div>
             <div className="w-px h-8 bg-border" />
             <div className="text-center">

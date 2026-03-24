@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Eye, Shield, Clock, CheckCircle, Link as LinkIcon } from "lucide-react";
+import { Download, Eye, Shield, Clock, CheckCircle, Link as LinkIcon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdModal } from "./ad-modal";
 
@@ -11,14 +11,16 @@ interface DownloadCardProps {
   fileSize?: string;
   downloadUrl: string;
   previewUrl?: string;
+  onDelete?: () => void;
 }
 
 export function DownloadCard({ 
   title, 
   description, 
-  fileSize = "12.5 MB", 
+  fileSize = "Unknown", 
   downloadUrl,
-  previewUrl 
+  previewUrl,
+  onDelete
 }: DownloadCardProps) {
   const [showAdModal, setShowAdModal] = useState(false);
   const [actionType, setActionType] = useState<"download" | "preview">("download");
@@ -52,6 +54,18 @@ export function DownloadCard({
         {/* Glow effect */}
         <div className="absolute inset-0 rounded-2xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
         
+        {/* Delete button */}
+        {onDelete && (
+          <Button
+            onClick={onDelete}
+            variant="ghost"
+            size="sm"
+            className="absolute top-4 right-4 h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors z-10"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+        
         {/* Content */}
         <div className="relative space-y-6">
           {/* Header */}
@@ -59,7 +73,7 @@ export function DownloadCard({
             <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
               <LinkIcon className="w-7 h-7 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-8">
               <h2 className="text-xl md:text-2xl font-bold text-foreground truncate">{title}</h2>
               <p className="text-muted-foreground mt-1 line-clamp-2">{description}</p>
             </div>
@@ -73,11 +87,11 @@ export function DownloadCard({
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Shield className="w-4 h-4 text-green-500" />
-              <span>Bezpieczny link</span>
+              <span>Secure link</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>Aktywny 24h</span>
+              <span>Active 24h</span>
             </div>
           </div>
 
@@ -91,12 +105,12 @@ export function DownloadCard({
               {isCompleted && actionType === "download" ? (
                 <>
                   <CheckCircle className="w-5 h-5 mr-2" />
-                  Pobieranie rozpoczęte!
+                  Download started!
                 </>
               ) : (
                 <>
                   <Download className="w-5 h-5 mr-2" />
-                  Pobierz plik
+                  Download
                 </>
               )}
             </Button>
@@ -111,12 +125,12 @@ export function DownloadCard({
                 {isCompleted && actionType === "preview" ? (
                   <>
                     <CheckCircle className="w-5 h-5 mr-2" />
-                    Otwarto!
+                    Opened!
                   </>
                 ) : (
                   <>
                     <Eye className="w-5 h-5 mr-2" />
-                    Podgląd
+                    Preview
                   </>
                 )}
               </Button>
@@ -125,7 +139,7 @@ export function DownloadCard({
 
           {/* Info */}
           <p className="text-xs text-muted-foreground/70 text-center">
-            Kliknięcie przycisku wyświetli reklamę wspierającą nasz serwis
+            Clicking the button will show an ad that supports our free service
           </p>
         </div>
       </div>

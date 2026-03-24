@@ -1,11 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { Header } from "@/components/header";
 import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
-import { Shield, Zap, Globe } from "lucide-react";
+import { LinkForm } from "@/components/link-form";
+import { Shield, Zap, Globe, Link2 } from "lucide-react";
+
+interface LinkData {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  fileSize: string;
+}
 
 export default function Home() {
+  const [links, setLinks] = useState<LinkData[]>([]);
+
+  const handleAddLink = (link: LinkData) => {
+    setLinks((prev) => [link, ...prev]);
+  };
+
+  const handleDeleteLink = (id: string) => {
+    setLinks((prev) => prev.filter((link) => link.id !== id));
+  };
+
   return (
     <main className="min-h-screen relative overflow-hidden">
       {/* Background Image with Blur and Overlay */}
@@ -32,28 +52,46 @@ export default function Home() {
           <div className="text-center mb-12 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/30 text-sm text-primary">
               <Zap className="w-4 h-4" />
-              Szybkie i bezpieczne pobieranie
+              Fast and secure downloads
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground text-balance">
-              Twój link jest{" "}
-              <span className="text-primary">gotowy</span>
+              Your link is{" "}
+              <span className="text-primary">ready</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-              Kliknij poniżej, aby pobrać plik lub zobaczyć zawartość. 
-              Reklamy wspierają nasz darmowy serwis.
+              Click below to download or preview your content. 
+              Ads support our free service.
             </p>
           </div>
 
-          {/* Download Card */}
-          <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-            <DownloadCard
-              title="Przykładowy plik"
-              description="Kliknij przycisk poniżej, aby rozpocząć pobieranie. Link jest aktywny przez 24 godziny."
-              fileSize="12.5 MB"
-              downloadUrl="https://example.com/download"
-              previewUrl="https://example.com/preview"
-            />
-          </div>
+          {/* Links List */}
+          {links.length > 0 ? (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+              {links.map((link) => (
+                <DownloadCard
+                  key={link.id}
+                  title={link.title}
+                  description={link.description}
+                  fileSize={link.fileSize}
+                  downloadUrl={link.url}
+                  previewUrl={link.url}
+                  onDelete={() => handleDeleteLink(link.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+              <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-12 text-center">
+                <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
+                  <Link2 className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">No links yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Click the + button to add your first monetized link
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Features */}
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-500">
@@ -61,24 +99,24 @@ export default function Home() {
               <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mx-auto">
                 <Shield className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-foreground">Bezpieczne linki</h3>
-              <p className="text-sm text-muted-foreground">Wszystkie pliki są skanowane pod kątem wirusów</p>
+              <h3 className="font-semibold text-foreground">Secure Links</h3>
+              <p className="text-sm text-muted-foreground">All files are scanned for viruses and malware</p>
             </div>
 
             <div className="text-center space-y-3 p-6 rounded-xl bg-card/40 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-colors duration-300">
               <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mx-auto">
                 <Zap className="w-6 h-6 text-accent" />
               </div>
-              <h3 className="font-semibold text-foreground">Błyskawiczne pobieranie</h3>
-              <p className="text-sm text-muted-foreground">Szybkie serwery na całym świecie</p>
+              <h3 className="font-semibold text-foreground">Lightning Fast</h3>
+              <p className="text-sm text-muted-foreground">High-speed servers around the globe</p>
             </div>
 
             <div className="text-center space-y-3 p-6 rounded-xl bg-card/40 backdrop-blur-sm border border-border/50 hover:border-primary/30 transition-colors duration-300">
               <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mx-auto">
                 <Globe className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-foreground">Globalny dostęp</h3>
-              <p className="text-sm text-muted-foreground">Dostępne z każdego miejsca na świecie</p>
+              <h3 className="font-semibold text-foreground">Global Access</h3>
+              <p className="text-sm text-muted-foreground">Available from anywhere in the world</p>
             </div>
           </div>
         </div>
@@ -87,16 +125,19 @@ export default function Home() {
         <footer className="relative z-20 border-t border-border/50 mt-20">
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-              <p>&copy; 2026 LinkBoost. Wszystkie prawa zastrzeżone.</p>
+              <p>© 2026 LinkBoost. All rights reserved.</p>
               <div className="flex items-center gap-6">
-                <a href="#" className="hover:text-foreground transition-colors">Regulamin</a>
-                <a href="#" className="hover:text-foreground transition-colors">Polityka prywatności</a>
-                <a href="#" className="hover:text-foreground transition-colors">Kontakt</a>
+                <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+                <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
+                <a href="#" className="hover:text-foreground transition-colors">Contact</a>
               </div>
             </div>
           </div>
         </footer>
       </div>
+
+      {/* Add Link Button */}
+      <LinkForm onLinkAdd={handleAddLink} />
     </main>
   );
 }

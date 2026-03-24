@@ -58,7 +58,7 @@ export function AdModal({ isOpen, onClose, onComplete, downloadUrl }: AdModalPro
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span className="text-sm font-medium">
-                {canSkip ? "Reklama zakończona" : `Poczekaj ${countdown}s...`}
+                {canSkip ? "Ad completed" : `Please wait ${countdown}s...`}
               </span>
             </div>
             {canSkip && (
@@ -75,22 +75,22 @@ export function AdModal({ isOpen, onClose, onComplete, downloadUrl }: AdModalPro
 
           {/* Ad Content Area */}
           <div className="p-6 space-y-6">
-            {/* Ad Placeholder - Replace with actual ad code */}
+            {/* Ad Placeholder - Replace with actual ad code from Adsterra */}
             <div className="aspect-video bg-secondary/50 rounded-xl border border-border flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,107,255,0.1)_50%,transparent_75%)] bg-[length:200%_200%] animate-[shimmer_2s_infinite]" />
               <div className="text-center space-y-2 relative z-10">
                 <div className="w-16 h-16 mx-auto rounded-xl bg-primary/20 flex items-center justify-center">
                   <ExternalLink className="w-8 h-8 text-primary" />
                 </div>
-                <p className="text-sm text-muted-foreground">Miejsce na reklamę</p>
-                <p className="text-xs text-muted-foreground/60">Adsterra / Inny dostawca</p>
+                <p className="text-sm text-muted-foreground">Advertisement Space</p>
+                <p className="text-xs text-muted-foreground/60">Adsterra / Other Provider</p>
               </div>
             </div>
 
             {/* Info */}
             <div className="text-center space-y-2">
               <p className="text-sm text-muted-foreground">
-                Reklamy wspierają nasz serwis i pozwalają nam oferować darmowe usługi
+                Ads support our service and allow us to offer free downloads
               </p>
             </div>
 
@@ -111,12 +111,12 @@ export function AdModal({ isOpen, onClose, onComplete, downloadUrl }: AdModalPro
               {canSkip ? (
                 <>
                   <ExternalLink className="w-5 h-5 mr-2" />
-                  Kontynuuj do pobrania
+                  Continue to download
                 </>
               ) : (
                 <>
                   <Clock className="w-5 h-5 mr-2 animate-pulse" />
-                  Poczekaj {countdown}s...
+                  Wait {countdown}s...
                 </>
               )}
             </Button>

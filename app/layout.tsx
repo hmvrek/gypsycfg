@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'LinkBoost - Skracanie Linków',
-  description: 'Nowoczesna platforma do skracania linków z monetyzacją',
+  title: 'LinkBoost - Link Shortener with Monetization',
+  description: 'Modern link shortener platform with ad monetization for creators',
   generator: 'v0.app',
   icons: {
     icon: [
