@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link2, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
 
 interface LinkData {
   id: string;
@@ -47,26 +48,21 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/links", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const supabase = createClient();
+      const { data, error: insertError } = await supabase
+        .from("links")
+        .insert({
           title: title.trim() || "My Link",
           description: description.trim() || "Click the button below to access your content.",
           url: url.trim(),
           file_size: fileSize.trim() || "Unknown",
-        }),
-      });
+        })
+        .select()
+        .single();
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create link");
-      }
+      if (insertError) throw insertError;
 
-      const newLink = await response.json();
-      onLinkAdd(newLink);
+      onLinkAdd(data);
       
       // Reset form
       setTitle("");
