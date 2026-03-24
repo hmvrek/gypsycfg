@@ -39,6 +39,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script 
+          src="https://pl28972011.profitablecpmratenetwork.com/d5/d3/72/d5d37220e6961e1ac7e7dc82d0153cb4.js"
+          async
+        />
+      </head>
       <body className="font-sans antialiased">
         {children}
       </body>
