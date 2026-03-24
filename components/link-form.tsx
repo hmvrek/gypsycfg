@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link2, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
 
 interface LinkData {
   id: string;
@@ -25,8 +26,9 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
   const [url, setUrl] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -43,24 +45,36 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
       return;
     }
 
-    // Create link data with unique ID
-    const newLink: LinkData = {
-      id: crypto.randomUUID(),
-      title: title.trim() || "My Link",
-      description: description.trim() || "Click the button below to access your content.",
-      url: url.trim(),
-      file_size: fileSize.trim() || "Unknown",
-      created_at: new Date().toISOString(),
-    };
+    setIsLoading(true);
 
-    onLinkAdd(newLink);
-    
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setUrl("");
-    setFileSize("");
-    setIsOpen(false);
+    try {
+      const supabase = createClient();
+      const { data, error: insertError } = await supabase
+        .from("links")
+        .insert({
+          title: title.trim() || "My Link",
+          description: description.trim() || "Click the button below to access your content.",
+          url: url.trim(),
+          file_size: fileSize.trim() || "Unknown",
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      onLinkAdd(data);
+      
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setUrl("");
+      setFileSize("");
+      setIsOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create link");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) {
@@ -162,10 +176,17 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
               </Button>
               <Button
                 type="submit"
+                disabled={isLoading}
                 className="flex-1 h-11 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Link
+                {isLoading ? (
+                  "Creating..."
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Link
+                  </>
+                )}
               </Button>
             </div>
           </form>

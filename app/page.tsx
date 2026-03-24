@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/header";
 import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
 import { LinkForm } from "@/components/link-form";
-import { Shield, Zap, Globe, Link2 } from "lucide-react";
+import { Shield, Zap, Globe, Link2, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface LinkData {
   id: string;
@@ -16,34 +17,36 @@ interface LinkData {
   created_at: string;
 }
 
-const STORAGE_KEY = "gypsycfg_links";
-
 export default function Home() {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    // Load links from localStorage
-    if (typeof window !== "undefined") {
-      const storedLinks = localStorage.getItem(STORAGE_KEY);
-      if (storedLinks) {
-        try {
-          const parsed = JSON.parse(storedLinks);
-          setLinks(parsed);
-        } catch {
-          setLinks([]);
-        }
-      }
+  const fetchLinks = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data, error: fetchError } = await supabase
+        .from("links")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setLinks(data || []);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching links:", err);
+      setError("Failed to load links");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
+  useEffect(() => {
+    fetchLinks();
+  }, [fetchLinks]);
+
   const handleAddLink = (link: LinkData) => {
-    const newLinks = [link, ...links];
-    setLinks(newLinks);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newLinks));
+    setLinks((prev) => [link, ...prev]);
   };
 
   return (
@@ -85,14 +88,21 @@ export default function Home() {
           </div>
 
           {/* Loading State */}
-          {(!mounted || isLoading) && (
+          {isLoading && (
             <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-6 text-center">
+              <p className="text-destructive">{error}</p>
             </div>
           )}
 
           {/* Links List */}
-          {mounted && !isLoading && links && links.length > 0 ? (
+          {!isLoading && !error && links && links.length > 0 ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               {links.map((link) => (
                 <DownloadCard
@@ -106,7 +116,7 @@ export default function Home() {
                 />
               ))}
             </div>
-          ) : mounted && !isLoading && (
+          ) : !isLoading && !error && (
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-12 text-center">
                 <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
