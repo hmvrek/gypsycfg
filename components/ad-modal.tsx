@@ -75,15 +75,18 @@ export function AdModal({ isOpen, onClose, onComplete, downloadUrl }: AdModalPro
 
           {/* Ad Content Area */}
           <div className="p-6 space-y-6">
-            {/* Ad Placeholder - Replace with actual ad code from Adsterra */}
+            {/* Ad Content */}
             <div className="aspect-video bg-secondary/50 rounded-xl border border-border flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,107,255,0.1)_50%,transparent_75%)] bg-[length:200%_200%] animate-[shimmer_2s_infinite]" />
-              <div className="text-center space-y-2 relative z-10">
-                <div className="w-16 h-16 mx-auto rounded-xl bg-primary/20 flex items-center justify-center">
-                  <ExternalLink className="w-8 h-8 text-primary" />
+              <div 
+                id="ad-container"
+                className="w-full h-full flex items-center justify-center"
+              >
+                <div className="text-center space-y-2">
+                  <div className="w-16 h-16 mx-auto rounded-xl bg-primary/20 flex items-center justify-center">
+                    <ExternalLink className="w-8 h-8 text-primary animate-pulse" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Loading advertisement...</p>
                 </div>
-                <p className="text-sm text-muted-foreground">Advertisement Space</p>
-                <p className="text-xs text-muted-foreground/60">Adsterra / Other Provider</p>
               </div>
             </div>
 
