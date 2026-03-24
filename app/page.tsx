@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
-import { LinkForm } from "@/components/link-form";
 import { Shield, Zap, Globe, Link2 } from "lucide-react";
 
 interface LinkData {
@@ -16,8 +15,6 @@ interface LinkData {
   created_at: string;
 }
 
-const STORAGE_KEY = "gypsycfg_links";
-
 export default function Home() {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,26 +22,18 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    // Load links from localStorage
-    if (typeof window !== "undefined") {
-      const storedLinks = localStorage.getItem(STORAGE_KEY);
-      if (storedLinks) {
-        try {
-          const parsed = JSON.parse(storedLinks);
-          setLinks(parsed);
-        } catch {
-          setLinks([]);
-        }
-      }
-    }
-    setIsLoading(false);
+    // Load links from JSON file on server
+    fetch("/data/links.json")
+      .then((res) => res.json())
+      .then((data) => {
+        setLinks(data);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setLinks([]);
+        setIsLoading(false);
+      });
   }, []);
-
-  const handleAddLink = (link: LinkData) => {
-    const newLinks = [link, ...links];
-    setLinks(newLinks);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newLinks));
-  };
 
   return (
     <main className="min-h-screen relative overflow-hidden">
@@ -112,9 +101,9 @@ export default function Home() {
                 <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
                   <Link2 className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">No links yet</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">No links available</h3>
                 <p className="text-muted-foreground mb-4">
-                  Click the + button to add your first monetized link
+                  Links will appear here when added
                 </p>
               </div>
             </div>
@@ -163,8 +152,7 @@ export default function Home() {
         </footer>
       </div>
 
-      {/* Add Link Button */}
-      <LinkForm onLinkAdd={handleAddLink} />
+      {/* Links are loaded from /public/data/links.json */}
     </main>
   );
 }
