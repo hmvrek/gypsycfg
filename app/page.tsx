@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/header";
 import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
 import { LinkForm } from "@/components/link-form";
 import { Shield, Zap, Globe, Link2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface LinkData {
   id: string;
@@ -18,29 +19,86 @@ interface LinkData {
 
 const STORAGE_KEY = "gypsycfg_links";
 
+// Check if Supabase is configured
+function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return !!(url && key && url.length > 0 && key.length > 0);
+}
+
 export default function Home() {
   const [links, setLinks] = useState<LinkData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [useSupabase, setUseSupabase] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    // Load links from localStorage
-    if (typeof window !== "undefined") {
-      const storedLinks = localStorage.getItem(STORAGE_KEY);
-      if (storedLinks) {
-        try {
-          const parsed = JSON.parse(storedLinks);
-          setLinks(parsed);
-        } catch {
-          setLinks([]);
+  const loadLinks = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    // Check if Supabase is configured
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("links")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          setLinks(data);
+          setUseSupabase(true);
+          setIsLoading(false);
+          return;
         }
+      } catch {
+        // Supabase failed, fall back to localStorage
+      }
+    }
+
+    // Fallback to localStorage
+    const storedLinks = localStorage.getItem(STORAGE_KEY);
+    if (storedLinks) {
+      try {
+        const parsed = JSON.parse(storedLinks);
+        setLinks(parsed);
+      } catch {
+        setLinks([]);
       }
     }
     setIsLoading(false);
   }, []);
 
-  const handleAddLink = (link: LinkData) => {
+  useEffect(() => {
+    setMounted(true);
+    loadLinks();
+  }, [loadLinks]);
+
+  const handleAddLink = async (link: LinkData) => {
+    // Try Supabase first if configured
+    if (useSupabase && isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("links")
+          .insert({
+            title: link.title,
+            description: link.description,
+            url: link.url,
+            file_size: link.file_size,
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          setLinks([data, ...links]);
+          return;
+        }
+      } catch {
+        // Fall through to localStorage
+      }
+    }
+
+    // Fallback to localStorage
     const newLinks = [link, ...links];
     setLinks(newLinks);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newLinks));
@@ -51,7 +109,7 @@ export default function Home() {
       {/* Background Image with Blur and Overlay */}
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
-        style={{ backgroundImage: "url('./images/background.jpg')" }}
+        style={{ backgroundImage: "url('/images/background.jpg')" }}
       >
         {/* Dark Overlay */}
         <div className="absolute inset-0 bg-background/85 backdrop-blur-sm" />

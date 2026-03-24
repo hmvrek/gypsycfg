@@ -15,14 +15,12 @@ interface DownloadCardProps {
 }
 
 export function DownloadCard({ 
-  id,
   title, 
   description, 
   fileSize = "Unknown", 
   downloadUrl,
   previewUrl,
 }: DownloadCardProps) {
-  void id;
   const [showAdModal, setShowAdModal] = useState(false);
   const [actionType, setActionType] = useState<"download" | "preview">("download");
   const [isCompleted, setIsCompleted] = useState(false);
