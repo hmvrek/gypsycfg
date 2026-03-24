@@ -1,29 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import useSWR, { mutate } from "swr";
 import { Header } from "@/components/header";
 import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
 import { LinkForm } from "@/components/link-form";
-import { Shield, Zap, Globe, Link2 } from "lucide-react";
+import { Shield, Zap, Globe, Link2, Loader2 } from "lucide-react";
 
 interface LinkData {
   id: string;
   title: string;
   description: string;
   url: string;
-  fileSize: string;
+  file_size: string;
+  created_at: string;
 }
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function Home() {
-  const [links, setLinks] = useState<LinkData[]>([]);
+  const { data: links, error, isLoading } = useSWR<LinkData[]>("/api/links", fetcher);
 
   const handleAddLink = (link: LinkData) => {
-    setLinks((prev) => [link, ...prev]);
+    // Optimistically update the cache
+    mutate("/api/links", [link, ...(links || [])], false);
   };
 
-  const handleDeleteLink = (id: string) => {
-    setLinks((prev) => prev.filter((link) => link.id !== id));
+  const handleDeleteLink = async (id: string) => {
+    // Optimistically update UI
+    mutate(
+      "/api/links",
+      links?.filter((link) => link.id !== id),
+      false
+    );
+
+    try {
+      const response = await fetch(`/api/links/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        // Revalidate on error to restore correct state
+        mutate("/api/links");
+      }
+    } catch {
+      // Revalidate on error
+      mutate("/api/links");
+    }
   };
 
   return (
@@ -64,22 +88,37 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-6 text-center">
+              <p className="text-destructive">Failed to load links. Please try again.</p>
+            </div>
+          )}
+
           {/* Links List */}
-          {links.length > 0 ? (
+          {!isLoading && !error && links && links.length > 0 ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               {links.map((link) => (
                 <DownloadCard
                   key={link.id}
+                  id={link.id}
                   title={link.title}
                   description={link.description}
-                  fileSize={link.fileSize}
+                  fileSize={link.file_size}
                   downloadUrl={link.url}
                   previewUrl={link.url}
-                  onDelete={() => handleDeleteLink(link.id)}
+                  onDelete={handleDeleteLink}
                 />
               ))}
             </div>
-          ) : (
+          ) : !isLoading && !error && (
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-12 text-center">
                 <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center mx-auto mb-4">

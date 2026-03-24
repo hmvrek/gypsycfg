@@ -6,15 +6,17 @@ import { Button } from "@/components/ui/button";
 import { AdModal } from "./ad-modal";
 
 interface DownloadCardProps {
+  id: string;
   title: string;
   description: string;
   fileSize?: string;
   downloadUrl: string;
   previewUrl?: string;
-  onDelete?: () => void;
+  onDelete?: (id: string) => void;
 }
 
 export function DownloadCard({ 
+  id,
   title, 
   description, 
   fileSize = "Unknown", 
@@ -57,7 +59,7 @@ export function DownloadCard({
         {/* Delete button */}
         {onDelete && (
           <Button
-            onClick={onDelete}
+            onClick={() => onDelete(id)}
             variant="ghost"
             size="sm"
             className="absolute top-4 right-4 h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors z-10"
@@ -91,7 +93,7 @@ export function DownloadCard({
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>Active 24h</span>
+              <span>Permanent link</span>
             </div>
           </div>
 

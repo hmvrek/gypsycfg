@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Plus, Sparkles, FileText, Trash2 } from "lucide-react";
+import { Link2, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -10,7 +10,8 @@ interface LinkData {
   title: string;
   description: string;
   url: string;
-  fileSize: string;
+  file_size: string;
+  created_at: string;
 }
 
 interface LinkFormProps {
@@ -24,8 +25,9 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
   const [url, setUrl] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -42,22 +44,41 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
       return;
     }
 
-    const newLink: LinkData = {
-      id: Date.now().toString(),
-      title: title.trim() || "My Link",
-      description: description.trim() || "Click the button below to access your content.",
-      url: url.trim(),
-      fileSize: fileSize.trim() || "Unknown",
-    };
+    setIsLoading(true);
 
-    onLinkAdd(newLink);
-    
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setUrl("");
-    setFileSize("");
-    setIsOpen(false);
+    try {
+      const response = await fetch("/api/links", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: title.trim() || "My Link",
+          description: description.trim() || "Click the button below to access your content.",
+          url: url.trim(),
+          file_size: fileSize.trim() || "Unknown",
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create link");
+      }
+
+      const newLink = await response.json();
+      onLinkAdd(newLink);
+      
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setUrl("");
+      setFileSize("");
+      setIsOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create link");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) {
@@ -108,6 +129,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className="h-11 bg-secondary/50 border-border focus:border-primary"
+                disabled={isLoading}
               />
             </div>
 
@@ -119,6 +141,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="h-11 bg-secondary/50 border-border focus:border-primary"
+                disabled={isLoading}
               />
             </div>
 
@@ -130,6 +153,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="h-11 bg-secondary/50 border-border focus:border-primary"
+                disabled={isLoading}
               />
             </div>
 
@@ -141,6 +165,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                 value={fileSize}
                 onChange={(e) => setFileSize(e.target.value)}
                 className="h-11 bg-secondary/50 border-border focus:border-primary"
+                disabled={isLoading}
               />
             </div>
 
@@ -154,15 +179,23 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                 variant="outline"
                 onClick={() => setIsOpen(false)}
                 className="flex-1 h-11 border-border hover:bg-secondary"
+                disabled={isLoading}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="flex-1 h-11 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
+                disabled={isLoading}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Link
+                {isLoading ? (
+                  "Creating..."
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Link
+                  </>
+                )}
               </Button>
             </div>
           </form>
