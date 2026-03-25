@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -7,7 +8,9 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'GypsyCFG - Config Links',
-  description: 'Share and manage your config links easily',
+  description: 'Share and manage your config links easily with ad monetization',
+  keywords: ['url shortener', 'link shortener', 'config links', 'download links'],
+  authors: [{ name: 'GypsyCFG' }],
   icons: {
     icon: [
       {
@@ -30,6 +33,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#1a1a2e',
 }
 
 export default function RootLayout({
@@ -40,9 +45,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script 
+        {/* Adsterra Ad Script - loads asynchronously */}
+        <Script 
+          id="adsterra-script"
           src="https://pl28972011.profitablecpmratenetwork.com/d5/d3/72/d5d37220e6961e1ac7e7dc82d0153cb4.js"
-          async
+          strategy="afterInteractive"
         />
       </head>
       <body className="font-sans antialiased">

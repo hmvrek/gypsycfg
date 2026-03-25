@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link2, Plus, Sparkles, Copy, Check, ExternalLink } from "lucide-react";
+import { Link2, Plus, Sparkles, Copy, Check, ExternalLink, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -12,7 +12,9 @@ interface LinkData {
   url: string;
   file_size: string;
   short_id: string;
+  image_url?: string;
   created_at: string;
+  owner_token?: string;
 }
 
 interface LinkFormProps {
@@ -29,13 +31,37 @@ function generateShortId(): string {
   return result;
 }
 
+// Generate a random owner token (32 characters)
+function generateOwnerToken(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 32; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Store owner token in localStorage
+function storeOwnerToken(shortId: string, token: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const tokens = JSON.parse(localStorage.getItem('link_owner_tokens') || '{}');
+    tokens[shortId] = token;
+    localStorage.setItem('link_owner_tokens', JSON.stringify(tokens));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function LinkForm({ onLinkAdd }: LinkFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
   const [fileSize, setFileSize] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdLink, setCreatedLink] = useState<LinkData | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -66,7 +92,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -83,22 +109,63 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
       return;
     }
 
-    // Generate short ID
+    // Validate image URL if provided
+    if (imageUrl.trim()) {
+      try {
+        new URL(imageUrl);
+      } catch {
+        setError("Please enter a valid image URL (include https://)");
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+
+    // Generate short ID and owner token
     const shortId = generateShortId();
+    const ownerToken = generateOwnerToken();
 
-    // Create link data with unique ID
-    const newLink: LinkData = {
-      id: crypto.randomUUID(),
-      title: title.trim() || "My Link",
-      description: description.trim() || "Click the button below to access your content.",
-      url: url.trim(),
-      file_size: fileSize.trim() || "Unknown",
-      short_id: shortId,
-      created_at: new Date().toISOString(),
-    };
+    try {
+      // Create link via API
+      const response = await fetch('/api/links', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: title.trim() || "My Link",
+          description: description.trim() || "Click the button below to access your content.",
+          url: url.trim(),
+          file_size: fileSize.trim() || "Unknown",
+          short_id: shortId,
+          image_url: imageUrl.trim() || null,
+          owner_token: ownerToken,
+        }),
+      });
 
-    onLinkAdd(newLink);
-    setCreatedLink(newLink);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create link');
+      }
+
+      const data = await response.json();
+
+      // Store owner token in localStorage
+      storeOwnerToken(shortId, ownerToken);
+
+      // Create link data with owner_token for local state
+      const newLink: LinkData = {
+        ...data,
+        owner_token: ownerToken,
+      };
+
+      onLinkAdd(newLink);
+      setCreatedLink(newLink);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create link');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -108,7 +175,9 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
     setDescription("");
     setUrl("");
     setFileSize("");
+    setImageUrl("");
     setCopied(false);
+    setError("");
   };
 
   const handleAddAnother = () => {
@@ -117,7 +186,9 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
     setDescription("");
     setUrl("");
     setFileSize("");
+    setImageUrl("");
     setCopied(false);
+    setError("");
   };
 
   if (!isOpen) {
@@ -140,7 +211,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
       />
       
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-md mx-4 animate-in zoom-in-95 slide-in-from-bottom-4 duration-500">
+      <div className="relative z-10 w-full max-w-md mx-4 animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 max-h-[90vh] overflow-y-auto">
         <div className="bg-card border border-border rounded-2xl shadow-2xl shadow-primary/20 overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 p-6 border-b border-border bg-secondary/30">
@@ -240,6 +311,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   className="h-11 bg-secondary/50 border-border focus:border-primary"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -251,6 +323,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="h-11 bg-secondary/50 border-border focus:border-primary"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -262,6 +335,7 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="h-11 bg-secondary/50 border-border focus:border-primary"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -273,7 +347,26 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                   value={fileSize}
                   onChange={(e) => setFileSize(e.target.value)}
                   className="h-11 bg-secondary/50 border-border focus:border-primary"
+                  disabled={isSubmitting}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" />
+                  Image URL (optional)
+                </label>
+                <Input
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="h-11 bg-secondary/50 border-border focus:border-primary"
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Add an image to display with your link
+                </p>
               </div>
 
               {error && (
@@ -286,15 +379,26 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
                   variant="outline"
                   onClick={handleClose}
                   className="flex-1 h-11 border-border hover:bg-secondary"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   className="flex-1 h-11 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
+                  disabled={isSubmitting}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Link
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Link
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

@@ -14,6 +14,7 @@ interface LinkData {
   url: string;
   file_size: string;
   short_id: string;
+  image_url?: string;
   created_at: string;
 }
 
@@ -133,6 +134,7 @@ export default function ShortLinkPage() {
                 fileSize={link.file_size}
                 downloadUrl={link.url}
                 previewUrl={link.url}
+                imageUrl={link.image_url}
               />
             </div>
           )}
