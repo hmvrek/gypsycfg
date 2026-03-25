@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Clock, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,7 @@ interface AdModalProps {
 export function AdModal({ isOpen, onClose, onComplete }: AdModalProps) {
   const [countdown, setCountdown] = useState(5);
   const [canSkip, setCanSkip] = useState(false);
+  const adContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -34,6 +35,22 @@ export function AdModal({ isOpen, onClose, onComplete }: AdModalProps) {
     }, 1000);
 
     return () => clearInterval(timer);
+  }, [isOpen]);
+
+  // Try to inject ad script when modal opens
+  useEffect(() => {
+    if (!isOpen || !adContainerRef.current) return;
+
+    // Clear previous content
+    adContainerRef.current.innerHTML = '';
+
+    // Create ad container div
+    const adDiv = document.createElement('div');
+    adDiv.id = 'modal-ad-container';
+    adContainerRef.current.appendChild(adDiv);
+
+    // The main ad script is already loaded in layout.tsx
+    // This container will be used by the ad network
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -58,7 +75,7 @@ export function AdModal({ isOpen, onClose, onComplete }: AdModalProps) {
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span className="text-sm font-medium">
-                {canSkip ? "Ad completed" : `Please wait ${countdown}s...`}
+                {canSkip ? "Ad completed - Click continue" : `Please wait ${countdown}s...`}
               </span>
             </div>
             {canSkip && (
@@ -75,15 +92,18 @@ export function AdModal({ isOpen, onClose, onComplete }: AdModalProps) {
 
           {/* Ad Content Area */}
           <div className="p-6 space-y-6">
-            {/* Ad Placeholder - Replace with actual ad code from Adsterra */}
-            <div className="aspect-video bg-secondary/50 rounded-xl border border-border flex items-center justify-center relative overflow-hidden">
+            {/* Ad Container - Adsterra will inject content here */}
+            <div 
+              ref={adContainerRef}
+              className="aspect-video bg-secondary/50 rounded-xl border border-border flex items-center justify-center relative overflow-hidden min-h-[250px]"
+            >
               <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,107,255,0.1)_50%,transparent_75%)] bg-[length:200%_200%] animate-[shimmer_2s_infinite]" />
               <div className="text-center space-y-2 relative z-10">
                 <div className="w-16 h-16 mx-auto rounded-xl bg-primary/20 flex items-center justify-center">
                   <ExternalLink className="w-8 h-8 text-primary" />
                 </div>
-                <p className="text-sm text-muted-foreground">Advertisement Space</p>
-                <p className="text-xs text-muted-foreground/60">Adsterra / Other Provider</p>
+                <p className="text-sm text-muted-foreground">Advertisement</p>
+                <p className="text-xs text-muted-foreground/60">Loading ad content...</p>
               </div>
             </div>
 
@@ -95,7 +115,7 @@ export function AdModal({ isOpen, onClose, onComplete }: AdModalProps) {
             </div>
 
             {/* Progress bar */}
-            <div className="h-1 bg-secondary rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-1000 ease-linear"
                 style={{ width: `${((5 - countdown) / 5) * 100}%` }}

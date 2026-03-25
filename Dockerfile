@@ -10,34 +10,27 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile
 # Copy source files
 COPY . .
 
-# Build the Next.js application
+# Set build-time environment variables (will be replaced at runtime via nginx config)
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# Build the Next.js application (creates 'out' folder)
 RUN pnpm build
 
-# Production stage
-FROM node:20-alpine AS runner
+# Production stage - using nginx for static files
+FROM nginx:alpine AS runner
 
-WORKDIR /app
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Set environment to production
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# Copy the static export from builder
+COPY --from=builder /app/out /usr/share/nginx/html
 
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Expose port 80
+EXPOSE 80
 
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Change ownership
-RUN chown -R nextjs:nodejs /app
-
-USER nextjs
-
-EXPOSE 3000
-
-# Start the application
-CMD ["node", "server.js"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/header";
 import { FloatingParticles } from "@/components/floating-particles";
 import { LinkForm } from "@/components/link-form";
-import { Shield, Zap, Globe, Link2, Copy, Check, ExternalLink, Trash2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Shield, Zap, Globe, Link2, Copy, Check, ExternalLink, Trash2, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
 
 interface LinkData {
   id: string;
@@ -15,14 +16,37 @@ interface LinkData {
   url: string;
   file_size: string;
   short_id: string;
+  image_url?: string;
   created_at: string;
+  owner_token?: string;
 }
 
-// Check if Supabase is configured
-function isSupabaseConfigured(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  return !!(url && key && url.length > 0 && key.length > 0);
+// Get owner tokens from localStorage
+function getOwnerTokens(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem('link_owner_tokens') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+// Get owner token for a link
+function getOwnerToken(shortId: string): string | null {
+  const tokens = getOwnerTokens();
+  return tokens[shortId] || null;
+}
+
+// Remove owner token from localStorage
+function removeOwnerToken(shortId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const tokens = getOwnerTokens();
+    delete tokens[shortId];
+    localStorage.setItem('link_owner_tokens', JSON.stringify(tokens));
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 export default function Home() {
@@ -30,30 +54,33 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadLinks = useCallback(async () => {
-    if (typeof window === "undefined") return;
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('links')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    // Check if Supabase is configured
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from("links")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (!error && data) {
-          setLinks(data);
-          setIsLoading(false);
-          return;
-        }
-      } catch {
-        // Supabase failed
+      if (error) {
+        console.error('Error loading links:', error);
+        return;
       }
-    }
 
-    setIsLoading(false);
+      if (data) {
+        // Filter links to only show those owned by the current user
+        const ownerTokens = getOwnerTokens();
+        const ownedShortIds = Object.keys(ownerTokens);
+        const userLinks = data.filter((link: LinkData) => ownedShortIds.includes(link.short_id));
+        setLinks(userLinks);
+      }
+    } catch {
+      // Failed to load links
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -61,61 +88,56 @@ export default function Home() {
     loadLinks();
   }, [loadLinks]);
 
-  const handleAddLink = async (link: LinkData) => {
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from("links")
-          .insert({
-            title: link.title,
-            description: link.description,
-            url: link.url,
-            file_size: link.file_size,
-            short_id: link.short_id,
-          })
-          .select()
-          .single();
-
-        if (!error && data) {
-          setLinks([data, ...links]);
-          return;
-        }
-      } catch {
-        // Fall through
-      }
-    }
-
-    // Fallback - just add to state
+  const handleAddLink = (link: LinkData) => {
     setLinks([link, ...links]);
   };
 
-  const handleDeleteLink = async (id: string) => {
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = createClient();
-        const { error } = await supabase
-          .from("links")
-          .delete()
-          .eq("id", id);
-
-        if (!error) {
-          setLinks(links.filter(l => l.id !== id));
-          return;
-        }
-      } catch {
-        // Fall through
-      }
+  const handleDeleteLink = async (shortId: string) => {
+    const ownerToken = getOwnerToken(shortId);
+    
+    if (!ownerToken) {
+      return; // Not the owner
     }
 
-    setLinks(links.filter(l => l.id !== id));
+    setDeletingId(shortId);
+
+    try {
+      const supabase = createClient();
+      
+      // First verify the owner token matches
+      const { data: existingLink } = await supabase
+        .from('links')
+        .select('owner_token')
+        .eq('short_id', shortId)
+        .single();
+
+      if (!existingLink || existingLink.owner_token !== ownerToken) {
+        return; // Token doesn't match
+      }
+
+      // Delete the link
+      const { error } = await supabase
+        .from('links')
+        .delete()
+        .eq('short_id', shortId)
+        .eq('owner_token', ownerToken);
+
+      if (!error) {
+        setLinks(links.filter(l => l.short_id !== shortId));
+        removeOwnerToken(shortId);
+      }
+    } catch {
+      // Failed to delete
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const getShortUrl = (shortId: string) => {
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/${shortId}`;
+      return `${window.location.origin}/link/?id=${shortId}`;
     }
-    return `/${shortId}`;
+    return `/link/?id=${shortId}`;
   };
 
   const handleCopy = async (shortId: string) => {
@@ -170,7 +192,7 @@ export default function Home() {
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
               Create shortened links with ad monetization. 
-              Share them and earn from every visit.
+              Only you can see and manage your own links.
             </p>
           </div>
 
@@ -184,74 +206,110 @@ export default function Home() {
           {/* Links List */}
           {mounted && !isLoading && links && links.length > 0 ? (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-              {links.map((link) => (
-                <div
-                  key={link.id}
-                  className="group relative bg-card/80 backdrop-blur-xl border border-border rounded-xl p-4 md:p-6 shadow-lg hover:shadow-primary/10 transition-all duration-300 hover:border-primary/30"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    {/* Link Icon */}
-                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                      <Link2 className="w-6 h-6 text-primary" />
-                    </div>
-
-                    {/* Link Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-foreground truncate">{link.title}</h3>
-                      <p className="text-sm text-muted-foreground truncate">{link.description}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <code className="text-xs bg-secondary/50 px-2 py-1 rounded font-mono text-primary">
-                          /{link.short_id}
-                        </code>
-                        <span className="text-xs text-muted-foreground">{link.file_size}</span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCopy(link.short_id)}
-                        className="h-9 px-3 border-border hover:bg-secondary hover:border-primary/30"
-                      >
-                        {copiedId === link.short_id ? (
-                          <>
-                            <Check className="w-4 h-4 mr-1 text-green-500" />
-                            <span className="text-green-500">Copied</span>
-                          </>
+              {links.map((link) => {
+                const isDeleting = deletingId === link.short_id;
+                
+                return (
+                  <div
+                    key={link.id}
+                    className="group relative bg-card/80 backdrop-blur-xl border border-border rounded-xl p-4 md:p-6 shadow-lg hover:shadow-primary/10 transition-all duration-300 hover:border-primary/30"
+                  >
+                    <div className="flex flex-col md:flex-row gap-4">
+                      {/* Link Image or Icon */}
+                      <div className="shrink-0">
+                        {link.image_url ? (
+                          <div className="relative w-full md:w-24 h-32 md:h-24 rounded-xl overflow-hidden bg-secondary/50">
+                            <Image
+                              src={link.image_url}
+                              alt={link.title}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
                         ) : (
-                          <>
-                            <Copy className="w-4 h-4 mr-1" />
-                            Copy
-                          </>
+                          <div className="w-full md:w-24 h-16 md:h-24 rounded-xl bg-primary/20 flex items-center justify-center">
+                            <Link2 className="w-8 h-8 text-primary" />
+                          </div>
                         )}
-                      </Button>
-                      <a
-                        href={getShortUrl(link.short_id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      </div>
+
+                      {/* Link Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-foreground truncate">{link.title}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{link.description}</p>
+                        
+                        {/* Short URL - Clickable and Copyable */}
+                        <div className="flex items-center gap-2 mt-3 flex-wrap">
+                          <code className="text-xs bg-secondary/50 px-3 py-1.5 rounded font-mono text-primary select-all cursor-pointer hover:bg-secondary transition-colors">
+                            {getShortUrl(link.short_id)}
+                          </code>
+                          {link.file_size && (
+                            <span className="text-xs text-muted-foreground bg-secondary/30 px-2 py-1 rounded">
+                              {link.file_size}
+                            </span>
+                          )}
+                          {link.image_url && (
+                            <span className="text-xs text-muted-foreground bg-secondary/30 px-2 py-1 rounded flex items-center gap-1">
+                              <ImageIcon className="w-3 h-3" />
+                              Image
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap md:flex-nowrap">
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => handleCopy(link.short_id)}
                           className="h-9 px-3 border-border hover:bg-secondary hover:border-primary/30"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          {copiedId === link.short_id ? (
+                            <>
+                              <Check className="w-4 h-4 mr-1 text-green-500" />
+                              <span className="text-green-500">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4 mr-1" />
+                              Copy
+                            </>
+                          )}
                         </Button>
-                      </a>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteLink(link.id)}
-                        className="h-9 px-3 border-border hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        <a
+                          href={getShortUrl(link.short_id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 px-3 border-border hover:bg-secondary hover:border-primary/30"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        </a>
+                        {/* Delete button - user can only see their own links */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteLink(link.short_id)}
+                          disabled={isDeleting}
+                          className="h-9 px-3 border-border hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive"
+                        >
+                          {isDeleting ? (
+                            <div className="w-4 h-4 border-2 border-destructive/30 border-t-destructive rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : mounted && !isLoading && (
             <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
@@ -259,9 +317,9 @@ export default function Home() {
                 <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
                   <Link2 className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">No links yet</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">You have no links yet</h3>
                 <p className="text-muted-foreground mb-4">
-                  Click the + button to add your first monetized link
+                  Click the + button to create your first shortened link. Only you will be able to see and manage it.
                 </p>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download, Eye, Shield, Clock, CheckCircle, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdModal } from "./ad-modal";
+import Image from "next/image";
 
 interface DownloadCardProps {
   id: string;
@@ -12,6 +13,7 @@ interface DownloadCardProps {
   fileSize?: string;
   downloadUrl: string;
   previewUrl?: string;
+  imageUrl?: string;
 }
 
 export function DownloadCard({ 
@@ -20,6 +22,7 @@ export function DownloadCard({
   fileSize = "Unknown", 
   downloadUrl,
   previewUrl,
+  imageUrl,
 }: DownloadCardProps) {
   const [showAdModal, setShowAdModal] = useState(false);
   const [actionType, setActionType] = useState<"download" | "preview">("download");
@@ -55,6 +58,19 @@ export function DownloadCard({
         
         {/* Content */}
         <div className="relative space-y-6">
+          {/* Image Preview (if available) */}
+          {imageUrl && (
+            <div className="relative w-full h-48 md:h-64 rounded-xl overflow-hidden bg-secondary/50">
+              <Image
+                src={imageUrl}
+                alt={title}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+          )}
+
           {/* Header */}
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
