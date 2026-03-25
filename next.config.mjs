@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  output: 'export',
+  trailingSlash: true,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -20,8 +21,7 @@ const nextConfig = {
       },
     ],
   },
-  // Disable trailing slashes for cleaner URLs
-  trailingSlash: false,
+
   // Enable compression
   compress: true,
 }

@@ -6,6 +6,7 @@ import { FloatingParticles } from "@/components/floating-particles";
 import { LinkForm } from "@/components/link-form";
 import { Shield, Zap, Globe, Link2, Copy, Check, ExternalLink, Trash2, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 
 interface LinkData {
@@ -57,9 +58,18 @@ export default function Home() {
 
   const loadLinks = useCallback(async () => {
     try {
-      const response = await fetch('/api/links');
-      if (response.ok) {
-        const data = await response.json();
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('links')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading links:', error);
+        return;
+      }
+
+      if (data) {
         // Filter links to only show those owned by the current user
         const ownerTokens = getOwnerTokens();
         const ownedShortIds = Object.keys(ownerTokens);
@@ -92,15 +102,27 @@ export default function Home() {
     setDeletingId(shortId);
 
     try {
-      const response = await fetch(`/api/links/${shortId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ owner_token: ownerToken }),
-      });
+      const supabase = createClient();
+      
+      // First verify the owner token matches
+      const { data: existingLink } = await supabase
+        .from('links')
+        .select('owner_token')
+        .eq('short_id', shortId)
+        .single();
 
-      if (response.ok) {
+      if (!existingLink || existingLink.owner_token !== ownerToken) {
+        return; // Token doesn't match
+      }
+
+      // Delete the link
+      const { error } = await supabase
+        .from('links')
+        .delete()
+        .eq('short_id', shortId)
+        .eq('owner_token', ownerToken);
+
+      if (!error) {
         setLinks(links.filter(l => l.short_id !== shortId));
         removeOwnerToken(shortId);
       }
@@ -113,9 +135,9 @@ export default function Home() {
 
   const getShortUrl = (shortId: string) => {
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/${shortId}`;
+      return `${window.location.origin}/link/?id=${shortId}`;
     }
-    return `/${shortId}`;
+    return `/link/?id=${shortId}`;
   };
 
   const handleCopy = async (shortId: string) => {

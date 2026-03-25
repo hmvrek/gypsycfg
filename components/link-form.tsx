@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link2, Plus, Sparkles, Copy, Check, ExternalLink, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
 
 interface LinkData {
   id: string;
@@ -67,9 +68,9 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
 
   const getShortUrl = (shortId: string) => {
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/${shortId}`;
+      return `${window.location.origin}/link/?id=${shortId}`;
     }
-    return `/${shortId}`;
+    return `/link/?id=${shortId}`;
   };
 
   const handleCopy = async () => {
@@ -126,29 +127,31 @@ export function LinkForm({ onLinkAdd }: LinkFormProps) {
     const ownerToken = generateOwnerToken();
 
     try {
-      // Create link via API
-      const response = await fetch('/api/links', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: title.trim() || "My Link",
-          description: description.trim() || "Click the button below to access your content.",
-          url: url.trim(),
-          file_size: fileSize.trim() || "Unknown",
-          short_id: shortId,
-          image_url: imageUrl.trim() || null,
-          owner_token: ownerToken,
-        }),
-      });
+      const supabase = createClient();
+      
+      const linkData = {
+        title: title.trim() || "My Link",
+        description: description.trim() || "Click the button below to access your content.",
+        url: url.trim(),
+        file_size: fileSize.trim() || "Unknown",
+        short_id: shortId,
+        image_url: imageUrl.trim() || null,
+        owner_token: ownerToken,
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to create link');
+      const { data, error: supabaseError } = await supabase
+        .from('links')
+        .insert(linkData)
+        .select()
+        .single();
+
+      if (supabaseError) {
+        throw new Error(supabaseError.message || 'Failed to create link');
       }
 
-      const data = await response.json();
+      if (!data) {
+        throw new Error('No data returned from database');
+      }
 
       // Store owner token in localStorage
       storeOwnerToken(shortId, ownerToken);
