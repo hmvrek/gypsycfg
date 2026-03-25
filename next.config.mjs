@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -9,6 +10,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Disable trailing slashes for cleaner URLs
+  trailingSlash: false,
+  // Enable compression
+  compress: true,
 }
 
 export default nextConfig

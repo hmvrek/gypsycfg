@@ -6,7 +6,6 @@ import { Header } from "@/components/header";
 import { DownloadCard } from "@/components/download-card";
 import { FloatingParticles } from "@/components/floating-particles";
 import { Shield, Zap, Globe, AlertCircle, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 interface LinkData {
   id: string;
@@ -18,7 +17,7 @@ interface LinkData {
   created_at: string;
 }
 
-export default function DownloadPage() {
+export default function ShortLinkPage() {
   const params = useParams();
   const shortId = params.shortId as string;
   
@@ -35,22 +34,20 @@ export default function DownloadPage() {
       }
 
       try {
-        const supabase = createClient();
-        const { data, error: fetchError } = await supabase
-          .from("links")
-          .select("*")
-          .eq("short_id", shortId)
-          .single();
-
-        if (fetchError || !data) {
-          setError("Link not found or has expired");
+        // Use API route to fetch link data
+        const response = await fetch(`/api/links/${shortId}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          setError(errorData.error || "Link not found or has expired");
           setIsLoading(false);
           return;
         }
 
+        const data = await response.json();
         setLink(data);
       } catch {
-        setError("Failed to load link");
+        setError("Failed to load link. Please try again.");
       } finally {
         setIsLoading(false);
       }
