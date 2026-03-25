@@ -30,12 +30,6 @@ function getOwnerTokens(): Record<string, string> {
   }
 }
 
-// Check if user owns a link
-function isOwner(shortId: string): boolean {
-  const tokens = getOwnerTokens();
-  return !!tokens[shortId];
-}
-
 // Get owner token for a link
 function getOwnerToken(shortId: string): string | null {
   const tokens = getOwnerTokens();
@@ -66,7 +60,11 @@ export default function Home() {
       const response = await fetch('/api/links');
       if (response.ok) {
         const data = await response.json();
-        setLinks(data);
+        // Filter links to only show those owned by the current user
+        const ownerTokens = getOwnerTokens();
+        const ownedShortIds = Object.keys(ownerTokens);
+        const userLinks = data.filter((link: LinkData) => ownedShortIds.includes(link.short_id));
+        setLinks(userLinks);
       }
     } catch {
       // Failed to load links
@@ -172,7 +170,7 @@ export default function Home() {
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
               Create shortened links with ad monetization. 
-              Share them and earn from every visit.
+              Only you can see and manage your own links.
             </p>
           </div>
 
@@ -187,7 +185,6 @@ export default function Home() {
           {mounted && !isLoading && links && links.length > 0 ? (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
               {links.map((link) => {
-                const userIsOwner = isOwner(link.short_id);
                 const isDeleting = deletingId === link.short_id;
                 
                 return (
@@ -272,22 +269,20 @@ export default function Home() {
                             <ExternalLink className="w-4 h-4" />
                           </Button>
                         </a>
-                        {/* Only show delete button if user is the owner */}
-                        {userIsOwner && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteLink(link.short_id)}
-                            disabled={isDeleting}
-                            className="h-9 px-3 border-border hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive"
-                          >
-                            {isDeleting ? (
-                              <div className="w-4 h-4 border-2 border-destructive/30 border-t-destructive rounded-full animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
+                        {/* Delete button - user can only see their own links */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteLink(link.short_id)}
+                          disabled={isDeleting}
+                          className="h-9 px-3 border-border hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive"
+                        >
+                          {isDeleting ? (
+                            <div className="w-4 h-4 border-2 border-destructive/30 border-t-destructive rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -300,9 +295,9 @@ export default function Home() {
                 <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
                   <Link2 className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">No links yet</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">You have no links yet</h3>
                 <p className="text-muted-foreground mb-4">
-                  Click the + button to add your first monetized link
+                  Click the + button to create your first shortened link. Only you will be able to see and manage it.
                 </p>
               </div>
             </div>
