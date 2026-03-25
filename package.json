@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:standalone": "cd .next/standalone && HOSTNAME=0.0.0.0 node server.js",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "@radix-ui/react-toggle": "1.1.10",
     "@radix-ui/react-toggle-group": "1.1.11",
     "@radix-ui/react-tooltip": "1.2.8",
+    "@supabase/supabase-js": "^2.47.0",
     "@supabase/ssr": "^0.9.0",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
